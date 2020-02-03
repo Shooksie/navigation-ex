@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {
-  NavigationContainer,
+  NavigationContainer as NavigationBaseContainer,
   NavigationContainerProps,
   NavigationContainerRef,
 } from '@react-navigation/core';
@@ -24,7 +24,7 @@ type Props = NavigationContainerProps & {
  * @param props.children Child elements to render the content.
  * @param props.ref Ref object which refers to the navigation object containing helper methods.
  */
-const NavigationNativeContainer = React.forwardRef(function NativeContainer(
+const NavigationContainer = React.forwardRef(function NavigationContainer(
   { theme = DefaultTheme, ...rest }: Props,
   ref: React.Ref<NavigationContainerRef>
 ) {
@@ -36,9 +36,9 @@ const NavigationNativeContainer = React.forwardRef(function NativeContainer(
 
   return (
     <ThemeProvider value={theme}>
-      <NavigationContainer {...rest} ref={refContainer} />
+      <NavigationBaseContainer {...rest} ref={refContainer} />
     </ThemeProvider>
   );
 });
 
-export default NavigationNativeContainer;
+export default NavigationContainer;
