@@ -119,42 +119,43 @@ export default function getStateFromPath(
       remaining = segments.join('/');
     }
 
-    let state: InitialState = { routes: [] };
+    let state: InitialState;
     let routeName = routeNames.shift() as string;
     let initialRoute = findInitialRoute(routeName, initialRoutes);
 
-    parseRoute(state, initialRoute, routeName, routeNames.length === 0, params);
+    state = createNestedState(
+      initialRoute,
+      routeName,
+      routeNames.length === 0,
+      params
+    );
 
-    if (routeName.length > 0) {
-      let helper = state.index
-        ? (state.routes[state.index].state as InitialState)
-        : (state.routes[0].state as InitialState);
+    if (routeNames.length > 0) {
+      let nestedState = state;
 
       while ((routeName = routeNames.shift() as string)) {
         initialRoute = findInitialRoute(routeName, initialRoutes);
-        parseRoute(
-          helper,
+        nestedState.routes[nestedState.index || 0].state = createNestedState(
           initialRoute,
           routeName,
           routeNames.length === 0,
           params
         );
         if (routeNames.length > 0) {
-          helper = helper.index
-            ? (helper.routes[helper.index].state as InitialState)
-            : (helper.routes[0].state as InitialState);
+          nestedState = nestedState.routes[nestedState.index || 0]
+            .state as InitialState;
         }
       }
     }
 
     if (current) {
       // The state should be nested inside the deepest route we parsed before
-      while (current?.routes[findRouteIndex(current)].state) {
-        current = current.routes[findRouteIndex(current)].state;
+      while (current?.routes[current.index || 0].state) {
+        current = current.routes[current.index || 0].state;
       }
 
       (current as PartialState<NavigationState>).routes[
-        findRouteIndex(current)
+        current?.index || 0
       ].state = state;
     } else {
       result = state;
@@ -170,13 +171,13 @@ export default function getStateFromPath(
   const query = path.split('?')[1];
 
   if (query) {
-    while (current?.routes[findRouteIndex(current)].state) {
+    while (current?.routes[current.index || 0].state) {
       // The query params apply to the deepest route
-      current = current.routes[findRouteIndex(current)].state;
+      current = current.routes[current.index || 0].state;
     }
 
     const route = (current as PartialState<NavigationState>).routes[
-      findRouteIndex(current)
+      current?.index || 0
     ];
 
     const params = queryString.parse(query);
@@ -273,6 +274,7 @@ function findParseConfigForRoute(
   return undefined;
 }
 
+// tries to find an initial route connected with the one passed
 function findInitialRoute(
   routeName: string,
   initialRoutes: InitialRouteConfig[]
@@ -287,41 +289,39 @@ function findInitialRoute(
   return undefined;
 }
 
-function parseRoute(
-  state: InitialState,
+// returns nested state object with values depending on whether
+// it is the end of state and if there is initialRoute for this level
+function createNestedState(
   initialRoute: string | undefined,
   routeName: string,
   isEmpty: boolean,
   params?: Record<string, any> | undefined
-) {
+): InitialState {
   if (isEmpty) {
     if (initialRoute) {
-      state.index = 1;
-      state.routes = [
-        { name: initialRoute },
-        { name: routeName as string, ...(params && { params }) },
-      ];
+      return {
+        index: 1,
+        routes: [
+          { name: initialRoute },
+          { name: routeName as string, ...(params && { params }) },
+        ],
+      };
     } else {
-      state.routes = [{ name: routeName as string, ...(params && { params }) }];
+      return {
+        routes: [{ name: routeName as string, ...(params && { params }) }],
+      };
     }
   } else {
     if (initialRoute) {
-      state.index = 1;
-      state.routes = [
-        { name: initialRoute },
-        { name: routeName as string, state: { routes: [] } },
-      ];
+      return {
+        index: 1,
+        routes: [
+          { name: initialRoute },
+          { name: routeName as string, state: { routes: [] } },
+        ],
+      };
     } else {
-      state.routes = [{ name: routeName as string, state: { routes: [] } }];
+      return { routes: [{ name: routeName as string, state: { routes: [] } }] };
     }
   }
-}
-
-function findRouteIndex(
-  state: PartialState<NavigationState> | undefined
-): number {
-  if (state) {
-    return state.index ? state.index : 0;
-  }
-  return 0;
 }
